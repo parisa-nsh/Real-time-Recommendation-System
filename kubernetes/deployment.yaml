@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recommendation-system
+  labels:
+    app: recommendation-system
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: recommendation-system
+  template:
+    metadata:
+      labels:
+        app: recommendation-system
+    spec:
+      containers:
+      - name: recommendation-api
+        image: recommendation-system:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recommendation-service
+spec:
+  selector:
+    app: recommendation-system
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: LoadBalancer
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: recommendation-monitor
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: recommendation-system
+  endpoints:
+  - port: http
+    path: /metrics 
